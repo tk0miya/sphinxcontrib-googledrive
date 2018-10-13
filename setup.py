@@ -6,7 +6,8 @@ long_desc = open('README.rst').read()
 
 requires = ['Sphinx>=1.8',
             'google-api-python-client',
-            'python-dateutil']
+            'python-dateutil',
+            'requests']
 
 setup(
     name='sphinxcontrib-googledrive',
