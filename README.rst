@@ -27,7 +27,7 @@ Please read the document of `Google Client Libraries: Using OAuth 2.0 for
 Server to Server Applications`_ and create your service account.  And
 please generate a private key for the account.
 
-.. _Google Client Libraries: Using OAuth 2.0 for Server to Server Applications`: https://developers.google.com/api-client-library/python/auth/service-accounts
+.. _Google Client Libraries\: Using OAuth 2.0 for Server to Server Applications: https://developers.google.com/api-client-library/python/auth/service-accounts
 
 Configure Sphinx
 ----------------
