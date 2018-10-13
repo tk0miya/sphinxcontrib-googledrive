@@ -4,22 +4,20 @@ import os
 import re
 from math import ceil
 from time import mktime
-from typing import TYPE_CHECKING
+from typing import Dict, Tuple
 
 import dateutil.parser
 import googleapiclient.discovery
 import requests
+from docutils import nodes
 from google.oauth2.service_account import Credentials
 from googleapiclient.errors import HttpError
+from sphinx.application import Sphinx
 from sphinx.errors import ExtensionError
 from sphinx.transforms.post_transforms.images import ImageConverter
 from sphinx.util import logging
 from sphinx.util.images import get_image_extension
 from sphinx.util.osutil import ensuredir
-
-if TYPE_CHECKING:
-    from typing import Dict, Tuple  # NOQA
-    from docutils import nodes  # NOQA
 
 logger = logging.getLogger(__name__)
 
@@ -28,8 +26,7 @@ drive_url_re = re.compile('https://drive.google.com/open\\?id=([^/?]+)')
 drawings_url_re = re.compile('https://docs.google.com/drawings/d/([^/?]+)(?:/edit.*)?')
 
 
-def url_to_file_id(url):
-    # type: (str) -> str
+def url_to_file_id(url: str) -> str:
     matched = drive_url_re.match(url)
     if matched:
         return matched.group(1)
@@ -49,30 +46,25 @@ class GoogleDrive(object):
     SCOPES = ['https://www.googleapis.com/auth/drive.readonly']
     IMAGE_INFO_FIELDS = 'mimeType,modifiedTime,trashed,webContentLink'
 
-    def __init__(self, credentials):
-        # type: (Credentials) -> None
+    def __init__(self, credentials: Credentials) -> None:
         self.service = googleapiclient.discovery.build('drive', 'v3', credentials=credentials)
 
     @classmethod
-    def from_service_account_file(cls, path):
-        # type: (str) -> GoogleDrive
+    def from_service_account_file(cls, path: str) -> "GoogleDrive":
         credentials = Credentials.from_service_account_file(path, scopes=cls.SCOPES)
         return cls(credentials)
 
     @classmethod
-    def from_service_account_info(cls, data):
-        # type: (str) -> GoogleDrive
+    def from_service_account_info(cls, data: str) -> "GoogleDrive":
         params = json.loads(data)
         credentials = Credentials.from_service_account_info(params, scopes=cls.SCOPES)
         return cls(credentials)
 
-    def get_image_info(self, file_id):
-        # type: (str) -> Dict[str, str]
+    def get_image_info(self, file_id: str) -> Dict[str, str]:
         request = self.service.files().get(fileId=file_id, fields=self.IMAGE_INFO_FIELDS)
         return request.execute()
 
-    def get_image(self, file_id, mimetype):
-        # type: (str, str) -> bytes
+    def get_image(self, file_id: str, mimetype: str) -> bytes:
         request = self.service.files().export(fileId=file_id, mimeType=mimetype)
         return request.execute()
 
@@ -80,8 +72,7 @@ class GoogleDrive(object):
 class Image:
     EXPORTABLE_IMAGES = ('application/vnd.google-apps.drawing',)
 
-    def __init__(self, drive, file_id, supported_image_types):
-        # type: (GoogleDrive, str, Tuple[str]) -> None
+    def __init__(self, drive: GoogleDrive, file_id: str, supported_image_types: Tuple[str]) -> None:
         image_info = drive.get_image_info(file_id)
         if image_info.get('trashed'):
             raise IOError('target file has been removed.')
@@ -95,8 +86,7 @@ class Image:
         d = dateutil.parser.parse(image_info['modifiedTime'])
         self.last_modified = int(mktime(d.timetuple()))
 
-    def guess_mimetype(self, image_info, supported_image_types):
-        # type: (Dict[str, str], Tuple[str]) -> str
+    def guess_mimetype(self, image_info: Dict[str, str], supported_image_types: Tuple[str]) -> str:
         mimetype = image_info.get('mimeType', '')
         if mimetype in self.EXPORTABLE_IMAGES:
             if 'application/pdf' in supported_image_types:
@@ -110,12 +100,10 @@ class Image:
                 raise UnsupportedMimeType(mimetype)
 
     @property
-    def extension(self):
-        # type: () -> str
+    def extension(self) -> str:
         return get_image_extension(self.mimetype)
 
-    def read(self):
-        # type: () -> bytes
+    def read(self) -> bytes:
         if self.exportable:
             return self.drive.get_image(self.file_id, self.mimetype)
         else:
@@ -126,13 +114,11 @@ class Image:
 class GoogleDriveImageConverter(ImageConverter):
     default_priority = 80  # before ImageDownloader
 
-    def match(self, node):
-        # type: (nodes.Node) -> bool
+    def match(self, node: nodes.Node) -> bool:
         uri = node.get('uri', '')
         return bool(url_to_file_id(uri))
 
-    def connect_to_GoogleDrive(self):
-        # type: () -> GoogleDrive
+    def connect_to_GoogleDrive(self) -> GoogleDrive:
         if ENVIRONMENT_NAME in os.environ:
             account_info = os.environ[ENVIRONMENT_NAME]
             return GoogleDrive.from_service_account_info(account_info)
@@ -141,8 +127,7 @@ class GoogleDriveImageConverter(ImageConverter):
 
         raise ExtensionError('service_account for google drive is not configured.')
 
-    def handle(self, node):
-        # type: (nodes.Node) -> None
+    def handle(self, node: nodes.Node) -> None:
         try:
             drive = self.connect_to_GoogleDrive()
             file_id = url_to_file_id(node['uri'])
@@ -175,6 +160,6 @@ class GoogleDriveImageConverter(ImageConverter):
                 logger.warning('Fail to download a image on Google Drive: %s (%r)', node['uri'], exc)
 
 
-def setup(app):
+def setup(app: Sphinx):
     app.add_config_value('googledrive_service_account', None, 'env')
     app.add_post_transform(GoogleDriveImageConverter)
