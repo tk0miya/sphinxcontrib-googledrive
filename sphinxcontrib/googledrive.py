@@ -2,12 +2,14 @@
 import json
 import os
 import re
+from io import BytesIO
 from math import ceil
 from time import mktime
 from typing import Dict, Tuple
 
 import dateutil.parser
 import googleapiclient.discovery
+import PIL.Image
 import requests
 from docutils import nodes
 from google.oauth2.service_account import Credentials
@@ -111,6 +113,19 @@ class Image:
             return r.content
 
 
+def trim_image(content: bytes, mimetype: str) -> bytes:
+    if mimetype in ('image/png', 'image/jpeg'):
+        image = PIL.Image.open(BytesIO(content))
+        box = image.getbbox()
+        if box[0] != 0 or box[1] != 0 or box[2:] != image.size:
+            output = BytesIO()
+            fileext = get_image_extension(mimetype)
+            image.crop(box).save(output, format=fileext[1:])
+            content = output.getvalue()
+
+    return content
+
+
 class GoogleDriveImageConverter(ImageConverter):
     default_priority = 80  # before ImageDownloader
 
@@ -143,7 +158,10 @@ class GoogleDriveImageConverter(ImageConverter):
             self.env.original_image_uri[path] = node['uri']
 
             with open(path, 'wb') as f:
-                f.write(image.read())
+                content = image.read()
+                if self.config.googledrive_trim_images:
+                    content = trim_image(content, image.mimetype)
+                f.write(content)
 
             node['candidates'].pop('?')
             node['candidates'][image.mimetype] = path
@@ -162,4 +180,5 @@ class GoogleDriveImageConverter(ImageConverter):
 
 def setup(app: Sphinx):
     app.add_config_value('googledrive_service_account', None, 'env')
+    app.add_config_value('googledrive_trim_images', bool, 'env')
     app.add_post_transform(GoogleDriveImageConverter)
