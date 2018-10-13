@@ -71,11 +71,9 @@ Configuration Options
 ======================
 
 **googledrive_service_account**
-
   A path to private key for service account.
 
 **googledrive_trim_images**
-
   Trim white space or not (boolean).
 
 
