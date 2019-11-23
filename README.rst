@@ -53,7 +53,7 @@ the following methods:
 Usage
 =====
 
-Please give an URL of caoo diagrams to image_ or figure_ directives
+Please give an URL of image on Google Drive to image_ or figure_ directives
 as an argument::
 
   .. image:: https://docs.google.com/drawings/d/1Q687-tVfqOMh86-16yl64misTee2bO5KPNuV5-LZ5FE/edit
